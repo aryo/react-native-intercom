@@ -18,9 +18,11 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import io.intercom.android.sdk.Company;
 import io.intercom.android.sdk.Intercom;
 import io.intercom.android.sdk.identity.Registration;
 import io.intercom.android.sdk.push.IntercomPushClient;
+import io.intercom.android.sdk.UserAttributes;
 
 public class IntercomModule extends ReactContextBaseJavaModule {
 
@@ -88,12 +90,12 @@ public class IntercomModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void updateUser(ReadableMap options, Callback callback) {
         try {
-            Map<String, Object> map = recursivelyDeconstructReadableMap(options);
-            Intercom.client().updateUser(map);
+            UserAttributes userAttributes = readableMapToUserAttributes(options);
+            Intercom.client().updateUser(userAttributes);
             Log.i(TAG, "updateUser");
             callback.invoke(null, null);
         } catch (Exception e) {
-            Log.e(TAG, "updateUser - unable to deconstruct argument map");
+            Log.e(TAG, "updateUser - unable to extract key/values from ReadableMap");
             callback.invoke(e.toString());
         }
     }
@@ -153,12 +155,6 @@ public class IntercomModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setHMAC(String hmac, String data, Callback callback) {
-        Intercom.client().setSecureMode(hmac, data);
-        callback.invoke(null, null);
-    }
-
-    @ReactMethod
     public void displayConversationsList(Callback callback) {
         Intercom.client().displayConversationsList();
         callback.invoke(null, null);
@@ -209,6 +205,31 @@ public class IntercomModule extends ReactContextBaseJavaModule {
         } catch (Exception ex) {
             callback.invoke(ex.toString());
         }
+    }
+
+    private UserAttributes readableMapToUserAttributes(ReadableMap readableMap) {
+        String userId = readableMap.getString("userId");
+        String email = readableMap.getString("email");
+        String phone = readableMap.getString("phone");
+        String name = readableMap.getString("name");
+
+        ReadableArray companies = readableMap.getArray("companies");
+        ReadableMap companyMap = companies.getMap(0);
+
+        String companyId = companyMap.getString("id");
+        String companyName = companyMap.getString("name");
+        Company company = new Company.Builder()
+                .withName(companyName)
+                .withCompanyId(companyId)
+                .build();
+
+        return new UserAttributes.Builder()
+                .withUserId(userId)
+                .withEmail(email)
+                .withPhone(phone)
+                .withName(name)
+                .withCompany(company)
+                .build();
     }
 
     private Map<String, Object> recursivelyDeconstructReadableMap(ReadableMap readableMap) {
